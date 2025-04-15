@@ -12,6 +12,7 @@ interface Post {
   created_at: string;
 }
 
+
 export default function BlogList() {
   const [posts, setPosts] = useState<Post[]>([]);
   const [loading, setLoading] = useState(true);

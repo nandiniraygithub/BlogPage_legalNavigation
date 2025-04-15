@@ -1,7 +1,8 @@
-import React, { useEffect, useState } from 'react';
-import { useParams, Link } from 'react-router-dom';
-import { format } from 'date-fns';
-import { supabase } from '../lib/supabase';
+/* eslint-disable @typescript-eslint/no-unused-vars */
+import React, { useEffect, useState } from "react";
+import { useParams, Link } from "react-router-dom";
+import { format } from "date-fns";
+import { supabase } from "../lib/supabase";
 
 interface Post {
   id: string;
@@ -20,15 +21,16 @@ export default function BlogDetail() {
     async function fetchPost() {
       try {
         const { data, error } = await supabase
-          .from('posts')
-          .select('*')
-          .eq('id', id)
+          .from("posts")
+          .select("*")
+          .eq("id", id)
           .single(); // returns a single object instead of array
 
         if (error) throw error;
         setPost(data);
+        console.log(data);
       } catch (error) {
-        console.error('Error fetching post:', error);
+        console.error("Error fetching post:", error);
       } finally {
         setLoading(false);
       }
@@ -67,11 +69,10 @@ export default function BlogDetail() {
       )}
       <h1 className="text-3xl font-bold text-gray-900 mb-4">{post.title}</h1>
       <p className="text-sm text-gray-500 mb-8">
-        Published on {format(new Date(post.created_at), 'MMMM d, yyyy')}
+        Published on {format(new Date(post.created_at), "MMMM d, yyyy")}
       </p>
-      <div className="text-gray-800 leading-relaxed whitespace-pre-line">
-        {post.content}
-      </div>
+      <div>{post.content}</div>
+
       <Link
         to="/"
         className="inline-block mt-10 text-indigo-600 font-medium hover:underline"
