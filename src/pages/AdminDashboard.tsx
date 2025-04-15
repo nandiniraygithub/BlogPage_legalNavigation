@@ -55,25 +55,55 @@ export default function AdminDashboard() {
     }
   }
 
-  async function deletePost(id: string) {
-    const confirmDelete = window.confirm('Are you sure you want to delete this post?');
-    if (!confirmDelete) return;
+  function confirmToast(message: string, onConfirm: () => void) {
+    toast.info(
+      ({ closeToast }) => (
+        <div className="space-y-2">
+          <p>{message}</p>
+          <div className="flex justify-end space-x-2">
+            <button
+              onClick={() => {
+                onConfirm();
+                closeToast();
+              }}
+              className="px-3 py-1 bg-red-600 text-white rounded hover:bg-red-700"
+            >
+              Yes
+            </button>
+            <button
+              onClick={closeToast}
+              className="px-3 py-1 bg-gray-300 rounded hover:bg-gray-400"
+            >
+              No
+            </button>
+          </div>
+        </div>
+      ),
+      {
+        autoClose: false,
+        closeOnClick: false,
+        draggable: false,
+      }
+    );
+  }
 
-    toast.info('Deleting post...');
+  function handleDeletePost(id: string) {
+    confirmToast('Are you sure you want to delete this post?', async () => {
+      toast.info('Deleting post...');
+      try {
+        const { error } = await supabase
+          .from('posts')
+          .delete()
+          .eq('id', id);
 
-    try {
-      const { error } = await supabase
-        .from('posts')
-        .delete()
-        .eq('id', id);
-
-      if (error) throw error;
-      toast.success('Post deleted successfully.');
-      await fetchPosts();
-    } catch (error) {
-      toast.error('Error deleting post.');
-      console.error('Error deleting post:', error);
-    }
+        if (error) throw error;
+        toast.success('Post deleted successfully.');
+        await fetchPosts();
+      } catch (error) {
+        toast.error('Error deleting post.');
+        console.error('Error deleting post:', error);
+      }
+    });
   }
 
   if (loading) {
@@ -127,7 +157,7 @@ export default function AdminDashboard() {
                     <Pencil size={20} />
                   </Link>
                   <button
-                    onClick={() => deletePost(post.id)}
+                    onClick={() => handleDeletePost(post.id)}
                     className="p-2 text-red-600 hover:bg-red-100 rounded-full"
                   >
                     <Trash2 size={20} />

@@ -3,6 +3,8 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
+import ReactQuill from 'react-quill';
+import 'react-quill/dist/quill.snow.css';
 import { supabase } from '../lib/supabase';
 
 const postSchema = z.object({
@@ -20,8 +22,15 @@ export default function EditPost() {
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [currentImageUrl, setCurrentImageUrl] = useState<string | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
-  
-  const { register, handleSubmit, formState: { errors }, reset } = useForm<PostForm>({
+  const [content, setContent] = useState(''); // Local state for ReactQuill
+
+  const {
+    register,
+    handleSubmit,
+    formState: { errors },
+    reset,
+    setValue,
+  } = useForm<PostForm>({
     resolver: zodResolver(postSchema),
   });
 
@@ -37,6 +46,7 @@ export default function EditPost() {
         if (error) throw error;
         if (data) {
           reset(data);
+          setContent(data.content); // Sync Quill content
           if (data.image_url) {
             setCurrentImageUrl(data.image_url);
           }
@@ -55,10 +65,9 @@ export default function EditPost() {
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    
+
     setImageFile(file);
-    
-    // Create a preview
+
     const reader = new FileReader();
     reader.onloadend = () => {
       setImagePreview(reader.result as string);
@@ -69,37 +78,38 @@ export default function EditPost() {
   const onSubmit = async (data: PostForm) => {
     try {
       let imageUrl = currentImageUrl;
-      
-      // Upload new image if selected
+
       if (imageFile) {
         const fileExt = imageFile.name.split('.').pop();
         const fileName = `${Date.now()}.${fileExt}`;
         const filePath = `post-images/${fileName}`;
-        
+
         const { error: uploadError } = await supabase.storage
           .from('blog-images')
           .upload(filePath, imageFile);
-          
+
         if (uploadError) throw uploadError;
-        
+
         const { data: urlData } = supabase.storage
           .from('blog-images')
           .getPublicUrl(filePath);
-          
+
         imageUrl = urlData.publicUrl;
       }
-      
+
       const payload = {
         ...data,
+        content, // use local state for content
         image_url: imageUrl,
       };
-      
+
       const { error } = await supabase
         .from('posts')
         .update(payload)
         .eq('id', id);
 
       if (error) throw error;
+
       navigate('/admin');
     } catch (error) {
       console.error('Error updating post:', error);
@@ -140,10 +150,13 @@ export default function EditPost() {
             <label htmlFor="content" className="block text-sm font-medium text-gray-700">
               Content
             </label>
-            <textarea
-              {...register('content')}
-              rows={8}
-              className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
+            <ReactQuill
+              value={content}
+              onChange={(value) => {
+                setContent(value);
+                setValue('content', value, { shouldValidate: true });
+              }}
+              className="mt-1"
             />
             {errors.content && (
               <p className="mt-1 text-sm text-red-600">{errors.content.message}</p>
@@ -163,13 +176,21 @@ export default function EditPost() {
             {imagePreview && (
               <div className="mt-2">
                 <p className="text-sm text-gray-500">New image preview:</p>
-                <img src={imagePreview} alt="Preview" className="h-24 w-auto object-cover rounded mt-1" />
+                <img
+                  src={imagePreview}
+                  alt="Preview"
+                  className="h-24 w-auto object-cover rounded mt-1"
+                />
               </div>
             )}
             {currentImageUrl && !imagePreview && (
               <div className="mt-2">
                 <p className="text-sm text-gray-500">Current image:</p>
-                <img src={currentImageUrl} alt="Current" className="h-24 w-auto object-cover rounded mt-1" />
+                <img
+                  src={currentImageUrl}
+                  alt="Current"
+                  className="h-24 w-auto object-cover rounded mt-1"
+                />
               </div>
             )}
           </div>

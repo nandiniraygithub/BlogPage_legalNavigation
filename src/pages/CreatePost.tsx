@@ -4,6 +4,8 @@ import { useForm } from 'react-hook-form';
 import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { supabase } from '../lib/supabase';
+import ReactQuill from 'react-quill';
+import 'react-quill/dist/quill.snow.css';
 
 const postSchema = z.object({
   title: z.string().min(1, 'Title is required'),
@@ -13,18 +15,21 @@ const postSchema = z.object({
 
 type PostForm = z.infer<typeof postSchema>;
 
-
-
 export default function CreatePost() {
   const navigate = useNavigate();
-  const { register, handleSubmit, formState: { errors } } = useForm<PostForm>({
+  const {
+    register,
+    handleSubmit,
+    setValue,
+    formState: { errors },
+  } = useForm<PostForm>({
     resolver: zodResolver(postSchema),
   });
 
   const [file, setFile] = useState<File | null>(null);
   const [uploading, setUploading] = useState(false);
+  const [editorContent, setEditorContent] = useState('');
 
-  // Cloudinary upload
   const uploadToCloudinary = async (file: File) => {
     const formData = new FormData();
     formData.append('file', file);
@@ -43,8 +48,8 @@ export default function CreatePost() {
   const onSubmit = async (formData: PostForm) => {
     try {
       setUploading(true);
-
       let imageUrl = '';
+
       if (file) {
         imageUrl = await uploadToCloudinary(file);
       }
@@ -54,8 +59,10 @@ export default function CreatePost() {
 
       const { error: insertError } = await supabase.from('posts').insert([
         {
-          ...formData,
+          title: formData.title,
+          content: editorContent,
           image_url: imageUrl,
+          published: formData.published,
           author_id: userData.user?.id,
         },
       ]);
@@ -64,8 +71,8 @@ export default function CreatePost() {
 
       navigate('/admin');
     } catch (error) {
-      console.error('Error:', error);
-      alert('Something went wrong. Try again!');
+      console.error(error);
+      alert('Failed to create post');
     } finally {
       setUploading(false);
     }
@@ -76,7 +83,7 @@ export default function CreatePost() {
     if (!selectedFile) return;
 
     const allowedTypes = ['image/jpeg', 'image/png', 'image/webp'];
-    const maxSize = 2 * 1024 * 1024; // 2MB
+    const maxSize = 2 * 1024 * 1024;
 
     if (!allowedTypes.includes(selectedFile.type)) {
       alert('Only JPEG, PNG, or WEBP images allowed.');
@@ -99,7 +106,7 @@ export default function CreatePost() {
 
       <div className="border-t border-gray-200">
         <form onSubmit={handleSubmit(onSubmit)} className="px-4 py-5 sm:px-6 space-y-6">
-
+          {/* Title */}
           <div>
             <label className="block text-sm font-medium text-gray-700">Title</label>
             <input
@@ -110,16 +117,41 @@ export default function CreatePost() {
             {errors.title && <p className="text-sm text-red-600">{errors.title.message}</p>}
           </div>
 
+          {/* React Quill Editor */}
           <div>
             <label className="block text-sm font-medium text-gray-700">Content</label>
-            <textarea
-              {...register('content')}
-              rows={6}
-              className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
+            <ReactQuill
+              theme="snow"
+              value={editorContent}
+              onChange={(value) => {
+                setEditorContent(value);
+                setValue('content', value); // keep react-hook-form in sync
+              }}
+              modules={{
+                toolbar: [
+                  [{ header: [1, 2, 3, false] }],
+                  ['bold', 'italic', 'blockquote'],
+                  [{ list: 'ordered' }, { list: 'bullet' }],
+                  ['link', 'emoji'],
+                  ['clean'],
+                ],
+              }}
+              formats={[
+                'header',
+                'bold',
+                'italic',
+                'blockquote',
+                'list',
+                'bullet',
+                'link',
+                'emoji',
+              ]}
+              className="mt-1"
             />
             {errors.content && <p className="text-sm text-red-600">{errors.content.message}</p>}
           </div>
 
+          {/* Image Upload */}
           <div>
             <label className="block text-sm font-medium text-gray-700">Upload Image</label>
             <input
@@ -137,6 +169,7 @@ export default function CreatePost() {
             )}
           </div>
 
+          {/* Published Checkbox */}
           <div className="flex items-center">
             <input
               type="checkbox"
@@ -146,6 +179,7 @@ export default function CreatePost() {
             <label className="ml-2 block text-sm text-gray-700">Publish immediately</label>
           </div>
 
+          {/* Buttons */}
           <div className="flex justify-end space-x-4">
             <button
               type="button"
@@ -162,7 +196,6 @@ export default function CreatePost() {
               {uploading ? 'Uploading...' : 'Create Post'}
             </button>
           </div>
-
         </form>
       </div>
     </div>
